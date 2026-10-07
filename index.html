@@ -1,0 +1,573 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SchoolSpace Game</title>
+<link rel="icon" href="data:,">
+<style>
+  :root {
+    --red: #d7263d; --blue: #1b6fd1; --ok: #1e8e3e; --ink: #1d1d1f; --muted: #5f6368;
+    --bg: #fffdf7; --card: #ffffff; --line: #e3e3e3;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  #app { max-width: 780px; margin: 0 auto; padding: 24px 16px 60px; }
+  .banner { background: #fff4cc; border: 1px solid #f2c200; border-radius: 10px; padding: 8px 12px;
+            font-size: .9rem; margin-bottom: 16px; }
+  .banner.err { background: #fde8eb; border-color: var(--red); }
+
+  /* child screens */
+  .kid { text-align: center; font-size: 1.5rem; line-height: 1.4; }
+  .kid h1 { font-size: 2.5rem; font-weight: 800; margin: .35em 0; }
+  .kid h2 { font-size: 1.9rem; font-weight: 700; margin: .35em 0; }
+  .kid p { margin: .5em 0; }
+  .badge { display: inline-block; border-radius: 999px; padding: 6px 22px; font-size: 1.25rem;
+           font-weight: 800; color: #fff; text-transform: uppercase; }
+  .badge.red { background: var(--red); } .badge.blue { background: var(--blue); }
+  .scores { display: flex; gap: 12px; justify-content: center; margin: 10px 0 18px; flex-wrap: wrap; }
+  .score { border-radius: 16px; padding: 10px 18px; font-size: 1.3rem; font-weight: 700; min-width: 200px; }
+  .score.mine { background: #fff4cc; border: 3px solid #f2c200; }
+  .score.comm { background: #e6f6ea; border: 3px solid #34a853; }
+  .score .num { font-size: 2rem; display: block; }
+  .big { display: inline-block; border: 0; border-radius: 28px; cursor: pointer; color: #fff;
+         font-size: 2rem; font-weight: 800; padding: 26px 34px; margin: 12px; min-width: 250px; min-height: 150px;
+         box-shadow: 0 6px 0 rgba(0,0,0,.18); touch-action: manipulation; font-family: inherit; }
+  .big:active { transform: translateY(3px); box-shadow: 0 3px 0 rgba(0,0,0,.18); }
+  .big .icon { font-size: 3.4rem; display: block; line-height: 1.1; }
+  .big.red { background: var(--red); } .big.blue { background: var(--blue); }
+  .big.go { background: var(--ok); min-height: 0; padding: 20px 60px; }
+  .big:disabled { opacity: .45; cursor: default; }
+  .big.chosen { opacity: 1; outline: 6px solid #f2c200; }
+  .rules { margin: 14px auto; border-collapse: separate; border-spacing: 0 8px; font-size: 1.3rem; }
+  .rules td { padding: 8px 14px; background: #fff; }
+  .rules td:first-child { border-radius: 12px 0 0 12px; text-align: left; }
+  .rules td:last-child { border-radius: 0 12px 12px 0; }
+  .huge { font-size: 5rem; line-height: 1.1; }
+  .wait { color: var(--muted); font-size: 1.3rem; margin-top: 18px; }
+  .dots::after { content: ''; animation: dots 1.4s steps(4, end) infinite; }
+  @keyframes dots { 0%{content:''} 25%{content:'.'} 50%{content:'..'} 75%{content:'...'} }
+  @media (max-width: 600px) { .big { min-width: 80%; min-height: 110px; } .kid h1 { font-size: 2rem; } }
+
+  /* operator */
+  .op { font-size: 1rem; }
+  .op h1 { font-size: 1.5rem; margin: 0 0 4px; }
+  .op .sub { color: var(--muted); margin-bottom: 14px; }
+  .op table { width: 100%; border-collapse: collapse; margin: 8px 0 16px; }
+  .op th, .op td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; }
+  .op th { background: #f5f5f5; }
+  .tag { display: inline-block; padding: 2px 10px; border-radius: 999px; color: #fff; font-weight: 700;
+         font-size: .85rem; text-transform: uppercase; }
+  .tag.red { background: var(--red); } .tag.blue { background: var(--blue); }
+  .st-chose { color: var(--ok); font-weight: 700; } .st-choosing { color: #b06000; font-weight: 700; }
+  .st-talking, .st-welcome, .st-offline { color: var(--muted); }
+  .action { font-size: 2.4rem; font-weight: 900; text-align: center; border-radius: 18px; padding: 26px 16px;
+            margin: 12px 0 16px; border: 6px solid; }
+  .action.red { background: #fde8eb; border-color: var(--red); color: #8f1020; }
+  .action.blue { background: #e5f0fd; border-color: var(--blue); color: #0b3f7d; }
+  .action.none { background: #f1f3f4; border-color: #80868b; color: #3c4043; }
+  .action-label { text-align: center; font-weight: 700; color: var(--muted); text-transform: uppercase;
+                  letter-spacing: .08em; }
+  .kpis { display: flex; gap: 12px; flex-wrap: wrap; margin: 6px 0 12px; }
+  .kpi { background: #f5f5f5; border-radius: 12px; padding: 10px 16px; min-width: 140px; }
+  .kpi .n { font-size: 1.5rem; font-weight: 800; display: block; }
+  .btn { font: inherit; font-weight: 700; border: 0; border-radius: 12px; padding: 12px 18px; cursor: pointer;
+         background: #e8eaed; }
+  .btn.primary { background: var(--ok); color: #fff; font-size: 1.4rem; width: 100%; padding: 18px; }
+  .btn:disabled { opacity: .5; cursor: default; }
+  .links code { user-select: all; font-size: .85rem; word-break: break-all; }
+  input[type=text] { font: inherit; padding: 10px 12px; border-radius: 10px; border: 1px solid #ccc; width: 260px; }
+  .note { color: var(--muted); font-size: .92rem; }
+</style>
+</head>
+<body>
+<div id="app">Loading…</div>
+
+<script type="module">
+/* =========================================================================
+   1. FIREBASE CONFIG — paste the snippet from Firebase here (see SETUP.md).
+      While apiKey is "PASTE-HERE", the page runs in DEMO MODE: it works,
+      but only between tabs/windows of ONE browser on ONE computer.
+   ========================================================================= */
+const FIREBASE_CONFIG = {
+  apiKey: "PASTE-HERE",
+  authDomain: "",
+  databaseURL: "",
+  projectId: "",
+  appId: "",
+};
+
+/* =========================================================================
+   2. STUDY PARAMETERS — the one place to change the experiment.
+      (Same names and defaults as the oTree version's study_config.py.)
+      Parameters are copied into each session when the operator starts it,
+      so changing them never alters a session that is already running.
+   ========================================================================= */
+const PARAMS = {
+  children_per_group: 4,
+  red_players: 2,
+  blue_players: 2,
+  num_rounds: 6,
+
+  community_start: 0,
+  community_reward_success: 4,
+  community_reward_failure: 0,
+
+  personal_start: 0,
+  personal_preferred_reward: 2,
+  personal_nonpreferred_reward: 1,
+  personal_failure_reward: 0,
+
+  decision_rule: "matching",        // see DECISION_RULES below
+  show_choice_split: false,         // OPEN DECISION: show children "3 chose Red, 1 chose Blue"?
+
+  red_label: "RED TREE",  red_icon: "🔴",
+  blue_label: "BLUE TREE", blue_icon: "🔵",
+  item_word: "tree", grown_icon: "🌳",
+};
+
+/* =========================================================================
+   3. DECISION RULES — how choices become an outcome.
+      Each takes an array of choices and returns 'red' / 'blue' or null.
+   ========================================================================= */
+const DECISION_RULES = {
+  // V1 (PI decision, 2 Oct 2026): something is added only if everyone picks the same.
+  matching: (choices) => (choices.length && choices.every(c => c === choices[0])) ? choices[0] : null,
+  // Placeholders for later conditions — not used in V1:
+  // threshold: (choices, k = 3) => ...
+};
+
+/* ======================================================================= */
+/*  Storage: Firebase Realtime Database, or a same-browser demo fallback.   */
+/* ======================================================================= */
+const qs = new URLSearchParams(location.search);
+const DEMO = qs.has('demo') || !FIREBASE_CONFIG.apiKey || FIREBASE_CONFIG.apiKey === 'PASTE-HERE';
+
+function makeLocalStore() {
+  const key = (sid) => 'schoolspace-demo:' + sid;
+  const chan = ('BroadcastChannel' in window) ? new BroadcastChannel('schoolspace-demo') : null;
+  const subs = {};
+  const read = (sid) => { try { return JSON.parse(localStorage.getItem(key(sid))) || null; } catch (e) { return null; } };
+  const notify = (sid) => (subs[sid] || []).forEach(cb => cb(read(sid)));
+  const write = (sid, obj) => { localStorage.setItem(key(sid), JSON.stringify(obj)); notify(sid); if (chan) chan.postMessage(sid); };
+  window.addEventListener('storage', (e) => { if (e.key && e.key.startsWith('schoolspace-demo:')) notify(e.key.slice(17)); });
+  if (chan) chan.onmessage = (e) => notify(e.data);
+  const split = (path) => { const parts = path.split('/').filter(Boolean); return [parts[1], parts.slice(2)]; };
+  const getIn = (o, ks) => ks.reduce((a, k) => (a == null ? undefined : a[k]), o);
+  const setIn = (o, ks, v) => { let cur = o; ks.slice(0, -1).forEach(k => { if (cur[k] == null || typeof cur[k] !== 'object') cur[k] = {}; cur = cur[k]; }); cur[ks[ks.length - 1]] = v; };
+  return {
+    now: () => Date.now(),
+    subscribe(sid, cb) { (subs[sid] = subs[sid] || []).push(cb); cb(read(sid)); },
+    async set(path, value) { const [sid, ks] = split(path); const o = read(sid) || {}; if (!ks.length) { write(sid, value); return; } setIn(o, ks, value); write(sid, o); },
+    async update(path, obj) { const [sid, ks] = split(path); const o = read(sid) || {}; for (const [k, v] of Object.entries(obj)) setIn(o, ks.concat(k.split('/')), v); write(sid, o); },
+    async setIfEmpty(path, value) { const [sid, ks] = split(path); const o = read(sid) || {}; if (getIn(o, ks) != null) return false; setIn(o, ks, value); write(sid, o); return true; },
+    async push(path, value) { const [sid, ks] = split(path); const o = read(sid) || {}; setIn(o, ks.concat('e' + Date.now() + Math.random().toString(36).slice(2, 6)), value); write(sid, o); },
+  };
+}
+
+async function makeFirebaseStore() {
+  const V = '10.12.2';
+  const { initializeApp } = await import(`https://www.gstatic.com/firebasejs/${V}/firebase-app.js`);
+  const fdb = await import(`https://www.gstatic.com/firebasejs/${V}/firebase-database.js`);
+  const app = initializeApp(FIREBASE_CONFIG);
+  const db = fdb.getDatabase(app);
+  let offset = 0;
+  fdb.onValue(fdb.ref(db, '.info/serverTimeOffset'), s => { offset = s.val() || 0; });
+  fdb.onValue(fdb.ref(db, '.info/connected'), s => { CONNECTED = !!s.val(); rerender(); });
+  return {
+    now: () => Date.now() + offset,   // server-corrected clock
+    subscribe(sid, cb) { fdb.onValue(fdb.ref(db, 'sessions/' + sid), s => cb(s.val())); },
+    set: (path, value) => fdb.set(fdb.ref(db, path), value),
+    update: (path, obj) => fdb.update(fdb.ref(db, path), obj),
+    async setIfEmpty(path, value) {
+      const r = await fdb.runTransaction(fdb.ref(db, path), cur => (cur === null ? value : undefined));
+      return r.committed;
+    },
+    push: (path, value) => fdb.push(fdb.ref(db, path), value),
+  };
+}
+
+/* ======================================================================= */
+/*  Helpers                                                                */
+/* ======================================================================= */
+const $app = document.getElementById('app');
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const cleanSid = (s) => String(s || '').trim().toLowerCase().replace(/[^a-z0-9-]/g, '-').slice(0, 40);
+const sid = cleanSid(qs.get('s'));
+const childNum = parseInt(qs.get('child'), 10) || null;
+const isOp = qs.get('op') === '1';
+let store, S = null;           // S = current session snapshot
+const P = () => (S && S.params) || PARAMS;
+let CONNECTED = null;          // Firebase connection state (null = unknown yet)
+function rerender() {
+  if (!store) return;
+  if (!sid) return;
+  lastChildKey = '';
+  try { isOp ? renderOperator() : renderChild(); } catch (e) { console.error(e); }
+}
+
+function banner() {
+  if (DEMO) return `<div class="banner"><b>DEMO MODE</b>: works only between windows of this one browser on this computer.
+    Add your Firebase settings to use it on other devices (see SETUP.md).</div>`;
+  if (CONNECTED === false) return `<div class="banner err"><b>Not connected.</b> Checking the internet connection… (choices are saved once it reconnects)</div>`;
+  if (isOp && CONNECTED) return `<div class="note" style="margin-bottom:10px">● Connected</div>`;
+  return '';
+}
+function linkFor(params) {
+  const u = new URL(location.href); u.search = '';
+  for (const [k, v] of Object.entries(params)) u.searchParams.set(k, v);
+  if (DEMO && qs.has('demo')) u.searchParams.set('demo', '1');
+  return u.toString();
+}
+function label(o) { const p = P(); return o === 'red' ? p.red_label : o === 'blue' ? p.blue_label : ''; }
+function icon(o) { const p = P(); return o === 'red' ? p.red_icon : o === 'blue' ? p.blue_icon : ''; }
+function rnd(r) { return (S && S.rounds && S.rounds[r]) || {}; }
+function children() { return Array.from({ length: P().children_per_group }, (_, i) => i + 1); }
+function teamOf(c) { return S && S.teams ? S.teams[c] : ''; }
+
+function personalBefore(c, r) {
+  if (r <= 1) return P().personal_start;
+  const res = rnd(r - 1).result;
+  return res ? res.personal_total[c] : personalBefore(c, r - 1);
+}
+function communityBefore(r) {
+  if (r <= 1) return P().community_start;
+  const res = rnd(r - 1).result;
+  return res ? res.community_total : communityBefore(r - 1);
+}
+function logEvent(type, extra = {}) {
+  if (!sid) return;
+  store.push(`sessions/${sid}/events`, { t: store.now(), who: isOp ? 'operator' : `child${childNum}`,
+    round: (S && S.state && S.state.round) || 0, type, ...extra });
+}
+let lastLogged = '';
+function logScreen(name) {
+  const k = name + ':' + ((S && S.state && S.state.round) || 0);
+  if (k !== lastLogged) { lastLogged = k; logEvent('screen', { screen: name }); }
+}
+
+/* ======================================================================= */
+/*  Landing page (no session in the link)                                  */
+/* ======================================================================= */
+function renderLanding() {
+  $app.innerHTML = `${banner()}<div class="op">
+    <h1>SchoolSpace game: start a group</h1>
+    <p class="sub">Type a name for this group's session (e.g. <code>pilot-1</code>). Each group needs a new name.</p>
+    <p><input id="sname" type="text" placeholder="pilot-1"> <button class="btn" id="go">Make links</button></p>
+    <div id="links"></div></div>`;
+  const make = () => {
+    const s = cleanSid(document.getElementById('sname').value);
+    if (!s) return;
+    const rows = children().map(c => `<tr><td>Child ${c}</td><td><code>${esc(linkFor({ s, child: c }))}</code></td></tr>`).join('');
+    document.getElementById('links').innerHTML = `<div class="links">
+      <h3>Operator (you)</h3><p><a href="${esc(linkFor({ s, op: 1 }))}" target="_blank">Open the operator screen</a>
+      <br><code>${esc(linkFor({ s, op: 1 }))}</code></p>
+      <h3>Children: send each child their own link</h3><table class="op">${rows}</table>
+      <p class="note">Colours are assigned at random when you press <b>Start</b> on the operator screen.</p></div>`;
+  };
+  document.getElementById('go').onclick = make;
+  document.getElementById('sname').addEventListener('keydown', e => { if (e.key === 'Enter') make(); });
+}
+
+/* ======================================================================= */
+/*  CHILD screens                                                          */
+/* ======================================================================= */
+let pendingChoice = false;
+
+function scoresHTML(mine, comm) {
+  return `<div class="scores"><div class="score mine">🪙 Your tokens<span class="num">${mine}</span></div>
+          <div class="score comm">🏘️ Community tokens<span class="num">${comm}</span></div></div>`;
+}
+
+function childScreen() {
+  if (!S || !S.state) return 'notstarted';
+  if (S.state.done) return 'end';
+  const r = S.state.round, me = String(childNum);
+  const R = rnd(r);
+  if (!(S.players && S.players[me] && S.players[me].welcomed)) return 'welcome';
+  if (R.choices && R.choices[me]) return R.result ? 'outcome' : 'waiting';
+  if (R.ready && R.ready[me]) return 'choose';
+  return 'discuss';
+}
+
+let lastChildKey = '';
+function renderChild() {
+  const p = P(), me = String(childNum);
+  if (!childNum || childNum < 1 || childNum > p.children_per_group) {
+    $app.innerHTML = `${banner()}<div class="kid"><h2>This link is missing a child number.</h2></div>`; return;
+  }
+  const scr = childScreen();
+  const r = S && S.state ? S.state.round : 0;
+  const key = scr + ':' + r;
+  if (key === lastChildKey) return;      // nothing visible changed
+  lastChildKey = key;
+  logScreen(scr);
+  const team = teamOf(me);
+  const teamBadge = team ? `<p><span class="badge ${team}">${icon(team)} You are ${team}</span></p>` : '';
+
+  if (scr === 'notstarted') {
+    $app.innerHTML = `${banner()}<div class="kid"><div class="huge">👋</div><h1>Hi!</h1>
+      <p class="wait">Waiting for the grown-up to start<span class="dots"></span></p></div>`;
+    return;
+  }
+  if (scr === 'welcome') {
+    const other = team === 'red' ? 'blue' : 'red';
+    $app.innerHTML = `${banner()}<div class="kid"><h1>Welcome!</h1>${teamBadge}
+      <p>Each round, your community can add a ${esc(p.item_word)}. ${p.grown_icon}</p>
+      <h2>A ${esc(p.item_word)} only grows if everyone picks the same kind.</h2>
+      <table class="rules">
+        <tr><td>${icon(team)} <b>${esc(label(team))}</b> grows</td><td>🪙 You get <b>${p.personal_preferred_reward}</b></td><td>🏘️ Community gets <b>${p.community_reward_success}</b></td></tr>
+        <tr><td>${icon(other)} <b>${esc(label(other))}</b> grows</td><td>🪙 You get <b>${p.personal_nonpreferred_reward}</b></td><td>🏘️ Community gets <b>${p.community_reward_success}</b></td></tr>
+        <tr><td>No ${esc(p.item_word)} grows</td><td>🪙 You get <b>${p.personal_failure_reward}</b></td><td>🏘️ Community gets <b>${p.community_reward_failure}</b></td></tr>
+      </table>
+      <p>Community tokens belong to everyone in your group.</p>
+      <button class="big go" id="ok">OK!</button></div>`;
+    document.getElementById('ok').onclick = (e) => {
+      e.target.disabled = true;
+      store.set(`sessions/${sid}/players/${me}/welcomed`, store.now());
+    };
+    return;
+  }
+  if (scr === 'discuss') {
+    store.setIfEmpty(`sessions/${sid}/rounds/${r}/discuss_loaded/${me}`, store.now());
+    $app.innerHTML = `${banner()}<div class="kid">${teamBadge}<h1>Round ${r}</h1>
+      ${scoresHTML(personalBefore(me, r), communityBefore(r))}
+      <p>Talk with your group about what your community should add next.</p>
+      <p>When you're ready to choose, press <b>READY</b>.</p>
+      <button class="big go" id="ready">READY</button></div>`;
+    document.getElementById('ready').onclick = (e) => {
+      e.target.disabled = true;
+      store.setIfEmpty(`sessions/${sid}/rounds/${r}/ready/${me}`, store.now());
+    };
+    return;
+  }
+  if (scr === 'choose') {
+    pendingChoice = false;
+    store.setIfEmpty(`sessions/${sid}/rounds/${r}/choice_loaded/${me}`, store.now());
+    $app.innerHTML = `${banner()}<div class="kid">${teamBadge}<h1>What should your community add?</h1>
+      <div>
+        <button class="big red" data-c="red"><span class="icon">${p.red_icon}</span>${esc(p.red_label)}</button>
+        <button class="big blue" data-c="blue"><span class="icon">${p.blue_icon}</span>${esc(p.blue_label)}</button>
+      </div>
+      <p class="wait" id="sending" style="display:none">Sending your choice<span class="dots"></span></p>
+      ${scoresHTML(personalBefore(me, r), communityBefore(r))}</div>`;
+    const btns = $app.querySelectorAll('[data-c]');
+    btns.forEach(b => b.onclick = async () => {
+      if (pendingChoice) return;
+      pendingChoice = true;
+      btns.forEach(x => x.disabled = true);
+      b.classList.add('chosen');
+      document.getElementById('sending').style.display = 'block';
+      await store.setIfEmpty(`sessions/${sid}/rounds/${r}/choices/${me}`, { choice: b.dataset.c, t: store.now() });
+    });
+    return;
+  }
+  if (scr === 'waiting') {
+    $app.innerHTML = `${banner()}<div class="kid"><div class="huge">✅</div><h1>Choice sent!</h1>
+      <p class="wait">Waiting for everyone else<span class="dots"></span></p></div>`;
+    return;
+  }
+  if (scr === 'outcome') {
+    const res = rnd(r).result;
+    const earned = res.personal_earned[me];
+    let split = '';
+    if (p.show_choice_split) {
+      const cs = Object.values(rnd(r).choices).filter(Boolean).map(x => x.choice);
+      split = `<p>${p.red_icon} ${cs.filter(c => c === 'red').length} chose ${esc(p.red_label)} · ${p.blue_icon} ${cs.filter(c => c === 'blue').length} chose ${esc(p.blue_label)}</p>`;
+    }
+    const body = res.matched
+      ? `<div class="huge">${p.grown_icon}</div><h1>Your group chose the ${icon(res.outcome)} ${esc(label(res.outcome))}!</h1>
+         <p>Your community earned <b>${res.community_earned}</b> tokens.</p>
+         <p>You earned <b>${earned}</b> ${earned === 1 ? 'token' : 'tokens'}.</p>`
+      : `<div class="huge">🌱</div><h1>Your group didn't all choose the same thing this round.</h1>
+         <p>Nothing was added to the community this time.</p>`;
+    $app.innerHTML = `${banner()}<div class="kid">${body}${split}
+      ${scoresHTML(res.personal_total[me], res.community_total)}
+      <p class="wait">Look at your community!<br>${r >= p.num_rounds ? 'Almost done' : 'The next round will start soon'}<span class="dots"></span></p></div>`;
+    return;
+  }
+  if (scr === 'end') {
+    const last = rnd(p.num_rounds).result;
+    $app.innerHTML = `${banner()}<div class="kid"><div class="huge">🎉</div><h1>All done! Thank you!</h1>
+      ${last ? scoresHTML(last.personal_total[me], last.community_total) : ''}
+      <p class="wait">Please wait for the grown-up to tell you what happens next.</p></div>`;
+  }
+}
+
+/* ======================================================================= */
+/*  OPERATOR screen                                                        */
+/* ======================================================================= */
+async function startSession() {
+  const p = PARAMS;
+  if (p.red_players + p.blue_players !== p.children_per_group) { alertBox('PARAMS: red_players + blue_players must equal children_per_group'); return; }
+  const teams = Array(p.red_players).fill('red').concat(Array(p.blue_players).fill('blue'));
+  for (let i = teams.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [teams[i], teams[j]] = [teams[j], teams[i]]; }
+  const teamMap = {}; teams.forEach((t, i) => teamMap[i + 1] = t);
+  const ok = await store.setIfEmpty(`sessions/${sid}/params`, p);
+  if (!ok) return;   // someone already started it
+  await store.update(`sessions/${sid}`, { teams: teamMap, created: store.now(), state: { round: 1, done: false } });
+  logEvent('start');
+}
+
+async function computeResult(r) {
+  const p = P(), R = rnd(r);
+  const kids = children().map(String);
+  const choices = kids.map(c => R.choices[c].choice);
+  const rule = DECISION_RULES[p.decision_rule];
+  if (!rule) { alertBox('Unknown decision_rule: ' + p.decision_rule); return; }
+  const winner = rule(choices);
+  const before = communityBefore(r);
+  const community_earned = winner ? p.community_reward_success : p.community_reward_failure;
+  const personal_earned = {}, personal_total = {};
+  kids.forEach(c => {
+    const e = !winner ? p.personal_failure_reward : (winner === teamOf(c) ? p.personal_preferred_reward : p.personal_nonpreferred_reward);
+    personal_earned[c] = e; personal_total[c] = personalBefore(c, r) + e;
+  });
+  await store.setIfEmpty(`sessions/${sid}/rounds/${r}/result`, {
+    outcome: winner || 'none', matched: !!winner, choices: kids.map((c, i) => `${c}:${choices[i]}`).join(' '),
+    community_before: before, community_earned, community_total: before + community_earned,
+    personal_earned, personal_total, t: store.now(),
+  });
+}
+
+function actionText(res) {
+  const p = P();
+  return res.matched ? `ADD ${label(res.outcome)}` : `NO ${p.item_word.toUpperCase()} THIS ROUND`;
+}
+
+function alertBox(msg) { const d = document.createElement('div'); d.className = 'banner err'; d.textContent = msg; $app.prepend(d); }
+
+function renderOperator() {
+  logScreen('operator');
+  const p = P();
+  if (!S || !S.params || !S.state) {
+    $app.innerHTML = `${banner()}<div class="op"><h1>OPERATOR · session "${esc(sid)}"</h1>
+      <p class="sub">This session hasn't started. Pressing Start assigns colours at random and copies the current settings into the session.</p>
+      <div class="kpis"><div class="kpi">Rounds<span class="n">${p.num_rounds}</span></div>
+      <div class="kpi">Children<span class="n">${p.children_per_group}</span></div>
+      <div class="kpi">Rule<span class="n" style="font-size:1rem">${esc(p.decision_rule)}</span></div></div>
+      <button class="btn primary" id="start">Start session</button>
+      <h3>Children's links</h3><table class="links">${children().map(c => `<tr><td>Child ${c}</td><td><code>${esc(linkFor({ s: sid, child: c }))}</code></td></tr>`).join('')}</table></div>`;
+    document.getElementById('start').onclick = (e) => { e.target.disabled = true; startSession(); };
+    return;
+  }
+  const r = S.state.round, R = rnd(r), kids = children().map(String);
+  const chosen = kids.filter(c => R.choices && R.choices[c]);
+  if (!S.state.done && chosen.length === kids.length && !R.result) computeResult(r);   // all in -> compute once
+
+  const history = [];
+  for (let i = 1; i <= p.num_rounds; i++) {
+    const res = rnd(i).result;
+    if (res && (i < r || S.state.done)) history.push(`<tr><td>${i}</td><td>${esc(res.choices)}</td><td>${esc(actionText(res))}</td><td>${res.community_total}</td></tr>`);
+  }
+  const histHTML = history.length ? `<h3 style="font-size:1.05rem">Earlier rounds</h3><table><tr><th>Round</th><th>Choices (child:choice)</th><th>SchoolSpace action</th><th>Pot after</th></tr>${history.join('')}</table>` : '';
+  const dl = `<p><button class="btn" id="dl1">Download data (one row per child per round)</button>
+              <button class="btn" id="dl2">Download event log</button></p>`;
+  const linksHTML = `<details><summary class="note">Children's links</summary><table class="links">${kids.map(c => `<tr><td>Child ${c} (${teamOf(c)})</td><td><code>${esc(linkFor({ s: sid, child: c }))}</code></td></tr>`).join('')}</table></details>`;
+
+  let body;
+  if (S.state.done) {
+    const last = rnd(p.num_rounds).result || {};
+    body = `<h1>OPERATOR · "${esc(sid)}" · finished</h1>
+      <p class="sub">All ${p.num_rounds} rounds done. Final community pot: <b>${last.community_total ?? '—'}</b>.</p>`;
+  } else if (R.result) {
+    const res = R.result;
+    const rows = kids.map(c => {
+      const ch = R.choices[c], lat = (R.choice_loaded && R.choice_loaded[c]) ? ((ch.t - R.choice_loaded[c]) / 1000).toFixed(1) + ' s' : '—';
+      return `<tr><td>Child ${c}</td><td><span class="tag ${teamOf(c)}">${teamOf(c)}</span></td><td><span class="tag ${ch.choice}">${ch.choice}</span></td><td>${lat}</td><td>+${res.personal_earned[c]}</td><td>${res.personal_total[c]}</td></tr>`;
+    }).join('');
+    body = `<h1>OPERATOR · "${esc(sid)}" · Round ${r} / ${p.num_rounds}</h1>
+      <p class="sub">The children are seeing their result now. They wait until you press the button.</p>
+      <div class="action-label">SchoolSpace action</div>
+      <div class="action ${res.matched ? res.outcome : 'none'}">${esc(actionText(res))}</div>
+      <div class="kpis"><div class="kpi">Outcome<span class="n">${res.matched ? res.outcome.toUpperCase() : 'NO MATCH'}</span></div>
+        <div class="kpi">Community earned<span class="n">+${res.community_earned}</span></div>
+        <div class="kpi">Community pot<span class="n">${res.community_total}</span></div></div>
+      <table><tr><th>Child</th><th>Colour</th><th>Chose</th><th>Time to choose</th><th>Earned</th><th>Total</th></tr>${rows}</table>
+      <button class="btn primary" id="confirm">SchoolSpace updated → ${r >= p.num_rounds ? 'finish' : 'start round ' + (r + 1)}</button>`;
+  } else {
+    const status = (c) => {
+      if (R.choices && R.choices[c]) return ['chose', 'chose ✔'];
+      if (R.ready && R.ready[c]) return ['choosing', 'choosing…'];
+      if (!(S.players && S.players[c] && S.players[c].welcomed)) return ['welcome', 'reading welcome / not joined'];
+      return ['talking', 'talking in SchoolSpace'];
+    };
+    const rows = kids.map(c => { const [cls, txt] = status(c);
+      return `<tr><td>Child ${c}</td><td><span class="tag ${teamOf(c)}">${teamOf(c)}</span></td><td>${personalBefore(c, r)}</td><td class="st-${cls}">${txt}</td></tr>`; }).join('');
+    body = `<h1>OPERATOR · "${esc(sid)}" · Round ${r} / ${p.num_rounds}</h1>
+      <p class="sub">Choices stay hidden until all ${kids.length} children have chosen.</p>
+      <div class="kpis"><div class="kpi">Community pot<span class="n">${communityBefore(r)}</span></div>
+        <div class="kpi">Chosen so far<span class="n">${chosen.length} / ${kids.length}</span></div>
+        <div class="kpi">Rule<span class="n" style="font-size:1rem">${esc(p.decision_rule)}</span></div></div>
+      <table><tr><th>Child</th><th>Colour</th><th>Tokens</th><th>Status</th></tr>${rows}</table>`;
+  }
+  $app.innerHTML = `${banner()}<div class="op">${body}${histHTML}${dl}${linksHTML}</div>`;
+  const cbtn = document.getElementById('confirm');
+  if (cbtn) cbtn.onclick = async () => {
+    cbtn.disabled = true;
+    const first = await store.setIfEmpty(`sessions/${sid}/rounds/${r}/confirmed`, store.now());
+    if (!first) return;
+    logEvent('confirm', { round: r });
+    await store.set(`sessions/${sid}/state`, r >= p.num_rounds ? { round: r, done: true } : { round: r + 1, done: false });
+  };
+  document.getElementById('dl1').onclick = () => download(`${sid}_rounds.csv`, roundsCSV());
+  document.getElementById('dl2').onclick = () => download(`${sid}_events.csv`, eventsCSV());
+}
+
+/* ======================================================================= */
+/*  Data export                                                            */
+/* ======================================================================= */
+const iso = (t) => t ? new Date(t).toISOString() : '';
+function toCSV(rows) { return rows.map(r => r.map(v => { const s = String(v ?? ''); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }).join(',')).join('\n') + '\n'; }
+function roundsCSV() {
+  const p = P();
+  const rows = [['session', 'child', 'team', 'round', 'decision_rule', 'choice', 'choice_latency_s',
+    'discuss_loaded', 'ready_at', 'choice_loaded', 'chose_at', 'group_choices', 'group_outcome', 'matched',
+    'personal_before', 'personal_earned', 'personal_total', 'community_before', 'community_earned', 'community_total',
+    'result_at', 'operator_confirmed_at']];
+  for (let r = 1; r <= p.num_rounds; r++) {
+    const R = rnd(r), res = R.result;
+    for (const c of children().map(String)) {
+      const ch = R.choices && R.choices[c];
+      const lat = ch && R.choice_loaded && R.choice_loaded[c] ? ((ch.t - R.choice_loaded[c]) / 1000).toFixed(3) : '';
+      rows.push([sid, c, teamOf(c), r, p.decision_rule, ch ? ch.choice : '', lat,
+        iso(R.discuss_loaded && R.discuss_loaded[c]), iso(R.ready && R.ready[c]), iso(R.choice_loaded && R.choice_loaded[c]), iso(ch && ch.t),
+        res ? res.choices : '', res ? res.outcome : '', res ? res.matched : '',
+        res ? personalBefore(c, r) : '', res ? res.personal_earned[c] : '', res ? res.personal_total[c] : '',
+        res ? res.community_before : '', res ? res.community_earned : '', res ? res.community_total : '',
+        iso(res && res.t), iso(R.confirmed)]);
+    }
+  }
+  return toCSV(rows);
+}
+function eventsCSV() {
+  const evs = Object.values((S && S.events) || {}).sort((a, b) => a.t - b.t);
+  return toCSV([['session', 'time', 'who', 'round', 'type', 'screen']].concat(evs.map(e => [sid, iso(e.t), e.who, e.round, e.type, e.screen || ''])));
+}
+function download(name, text) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], { type: 'text/csv' }));
+  a.download = name; document.body.appendChild(a); a.click(); a.remove();
+}
+
+/* ======================================================================= */
+/*  Boot                                                                   */
+/* ======================================================================= */
+(async function boot() {
+  try {
+    store = DEMO ? makeLocalStore() : await makeFirebaseStore();
+  } catch (e) {
+    $app.innerHTML = `<div class="banner err">Couldn't connect to Firebase: ${esc(e.message)}. Check the settings at the top of index.html.</div>`;
+    return;
+  }
+  if (!sid) { renderLanding(); return; }
+  store.subscribe(sid, (val) => {
+    S = val;
+    try { isOp ? renderOperator() : renderChild(); }
+    catch (e) { console.error(e); alertBox('Display error: ' + e.message); }
+  });
+})();
+</script>
+</body>
+</html>
